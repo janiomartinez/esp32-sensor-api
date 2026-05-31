@@ -37,66 +37,85 @@ app.post('/sensor', async (req, res) => {
 
 // Ultimas 20 lecturas para la tabla
 app.get('/sensor', async (req, res) => {
-  const datos = await Lectura.find().sort({ timestamp: -1 }).limit(20);
-  res.json(datos);
+  try {
+    const datos = await Lectura.find().sort({ timestamp: -1 }).limit(20);
+    res.json(datos);
+  } catch (err) {
+    console.error('Error GET /sensor:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Promedios cada 5 minutos para el grafico
 app.get('/sensor/chart', async (req, res) => {
-  const ahora = new Date();
-  const desde = req.query.desde ? new Date(req.query.desde) : new Date(ahora - 60 * 60 * 1000);
-  const hasta = req.query.hasta ? new Date(req.query.hasta) : ahora;
+  try {
+    const ahora = new Date();
+    const desde = req.query.desde ? new Date(req.query.desde) : new Date(ahora - 60 * 60 * 1000);
+    const hasta = req.query.hasta ? new Date(req.query.hasta) : ahora;
 
-  const datos = await Lectura.aggregate([
-    { $match: { timestamp: { $gte: desde, $lte: hasta } } },
-    {
-      $group: {
-        _id: {
-          year:     { $year: '$timestamp' },
-          month:    { $month: '$timestamp' },
-          day:      { $dayOfMonth: '$timestamp' },
-          hour:     { $hour: '$timestamp' },
-          interval: { $floor: { $divide: [{ $minute: '$timestamp' }, 5] } }
-        },
-        temperatura: { $avg: '$temperatura' },
-        humedad:     { $avg: '$humedad' },
-        timestamp:   { $min: '$timestamp' }
-      }
-    },
-    { $sort: { timestamp: 1 } }
-  ]);
+    const datos = await Lectura.aggregate([
+      { $match: { timestamp: { $gte: desde, $lte: hasta } } },
+      {
+        $group: {
+          _id: {
+            year:     { $year: '$timestamp' },
+            month:    { $month: '$timestamp' },
+            day:      { $dayOfMonth: '$timestamp' },
+            hour:     { $hour: '$timestamp' },
+            interval: { $floor: { $divide: [{ $minute: '$timestamp' }, 5] } }
+          },
+          temperatura: { $avg: '$temperatura' },
+          humedad:     { $avg: '$humedad' },
+          timestamp:   { $min: '$timestamp' }
+        }
+      },
+      { $sort: { timestamp: 1 } }
+    ]);
 
-  res.json(datos.map(d => ({
-    label: new Date(d.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
-    timestamp: d.timestamp,
-    temperatura: parseFloat(d.temperatura.toFixed(1)),
-    humedad: parseFloat(d.humedad.toFixed(1))
-  })));
+    res.json(datos.map(d => ({
+      label: new Date(d.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: d.timestamp,
+      temperatura: parseFloat(d.temperatura.toFixed(1)),
+      humedad: parseFloat(d.humedad.toFixed(1))
+    })));
+  } catch (err) {
+    console.error('Error GET /sensor/chart:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Datos historicos por rango de fecha
 app.get('/sensor/history', async (req, res) => {
-  const { desde, hasta } = req.query;
-  const query = {};
-  if (desde) query.timestamp = { $gte: new Date(desde) };
-  if (hasta) query.timestamp = { ...query.timestamp, $lte: new Date(hasta) };
-  const datos = await Lectura.find(query).sort({ timestamp: -1 }).limit(5000);
-  res.json(datos);
+  try {
+    const { desde, hasta } = req.query;
+    const query = {};
+    if (desde) query.timestamp = { $gte: new Date(desde) };
+    if (hasta) query.timestamp = { ...query.timestamp, $lte: new Date(hasta) };
+    const datos = await Lectura.find(query).sort({ timestamp: -1 }).limit(5000);
+    res.json(datos);
+  } catch (err) {
+    console.error('Error GET /sensor/history:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Exportar CSV
 app.get('/sensor/export', async (req, res) => {
-  const { desde, hasta } = req.query;
-  const query = {};
-  if (desde) query.timestamp = { $gte: new Date(desde) };
-  if (hasta) query.timestamp = { ...query.timestamp, $lte: new Date(hasta) };
-  const datos = await Lectura.find(query).sort({ timestamp: 1 });
-
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename=sensor_data.csv');
-  res.write('timestamp,temperatura,humedad\n');
-  datos.forEach(d => res.write(d.timestamp.toISOString() + ',' + d.temperatura + ',' + d.humedad + '\n'));
-  res.end();
+  try {
+    const { desde, hasta } = req.query;
+    const query = {};
+    if (desde) query.timestamp = { $gte: new Date(desde) };
+    if (hasta) query.timestamp = { ...query.timestamp, $lte: new Date(hasta) };
+    const datos = await Lectura.find(query).sort({ timestamp: 1 });
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=sensor_data.csv');
+    res.write('timestamp,temperatura,humedad\n');
+    datos.forEach(d => res.write(d.timestamp.toISOString() + ',' + d.temperatura + ',' + d.humedad + '\n'));
+    res.end();
+  } catch (err) {
+    console.error('Error GET /sensor/export:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/', (req, res) => {
