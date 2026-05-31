@@ -26,8 +26,13 @@ app.post('/sensor', async (req, res) => {
   if (temperatura === undefined || humedad === undefined) {
     return res.status(400).json({ error: 'Faltan datos' });
   }
-  await Lectura.create({ temperatura: parseFloat(temperatura), humedad: parseFloat(humedad) });
-  res.json({ ok: true });
+  try {
+    await Lectura.create({ temperatura: parseFloat(temperatura), humedad: parseFloat(humedad) });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error guardando lectura:', err.message);
+    res.status(500).json({ error: 'Error guardando datos' });
+  }
 });
 
 // Ultimas 20 lecturas para la tabla
