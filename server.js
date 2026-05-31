@@ -5,7 +5,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 let lecturas = [];
-const MAX_LECTURAS = 50;
+const MAX_LECTURAS = 20;
 
 app.post('/sensor', (req, res) => {
   const { temperatura, humedad } = req.body;
